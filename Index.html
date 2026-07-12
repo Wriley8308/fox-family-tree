@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The William Fox Comprehensive Family Tree</title>
+    <style>
+        :root {
+            --bg-color: #fdfaf2;
+            --primary-warm: #8c2d19;
+            --text-color: #4e342e;
+            --box-bg: #ffffff;
+            --border-color: #d7ccc8;
+            --gen-bg-0: #efebe9;
+            --gen-bg-1: #fbe9e7;
+            --gen-bg-2: #ffccbc;
+            --gen-bg-3: #ffab91;
+            --gen-bg-4: #ff8a65;
+            --shadow: 0 4px 8px rgba(140, 45, 25, 0.12);
+            --hover-shadow: 0 8px 16px rgba(140, 45, 25, 0.22);
+        }
+
+        body {
+            font-family: 'Segoe UI', Calibri, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+        }
+
+        h1 {
+            text-align: center;
+            color: var(--primary-warm);
+            margin-bottom: 5px;
+        }
+
+        .subtitle {
+            text-align: center;
+            font-style: italic;
+            margin-bottom: 30px;
+            color: #795548;
+        }
+
+        /* Floating Zoom Controls */
+        .zoom-panel {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: var(--box-bg);
+            padding: 10px 15px;
+            border-radius: 30px;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+            border: 2px solid var(--primary-warm);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            z-index: 100;
+        }
+
+        .zoom-panel button {
+            background: var(--primary-warm);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 32px;
+            height: 32px;
+            font-weight: bold;
+            font-size: 1.1em;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+
+        .zoom-panel button:hover {
+            background: #b03a24;
+        }
+
+        .zoom-panel button.btn-reset {
+            border-radius: 20px;
+            width: auto;
+            padding: 0 12px;
+            font-size: 0.85em;
+        }
+
+        .zoom-panel input[type="range"] {
+            cursor: pointer;
+            accent-color: var(--primary-warm);
+            width: 100px;
+        }
+
+        .zoom-label {
+            font-size: 0.85em;
+            font-weight: bold;
+            min-width: 40px;
+            text-align: center;
+        }
+
+        .tree-viewport {
+            width: 100%;
+            overflow: auto;
+            padding-bottom: 40px;
+            border: 1px solid transparent;
+        }
+
+        /* Target wrapper for applying scale adjustments */
+        #zoomWrapper {
+            transform-origin: top center;
+            transition: transform 0.15s ease-out;
+            width: max-content;
+            margin: 0 auto;
+        }
+
+        .tree-container {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            gap: 60px;
+            padding: 20px;
+            width: max-content;
+        }
+
+        .generation-envelope {
+            border: 2px dashed #a1887f;
+            border-radius: 12px;
+            padding: 35px 25px 25px 25px;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+        }
+
+        .generation-envelope::before {
+            content: attr(data-gen);
+            position: absolute;
+            top: -12px;
+            left: 20px;
+            background-color: var(--bg-color);
+            padding: 0 12px;
+            font-weight: bold;
+            color: var(--primary-warm);
+            font-size: 0.95em;
+        }
+
+        .gen-0 { background-color: var(--gen-bg-0); }
+        .gen-1 { background-color: var(--gen-bg-1); }
+        .gen-2 { background-color: var(--gen-bg-2); }
+        .gen-3 { background-color: var(--gen-bg-3); }
+        .gen-4 { background-color: var(--gen-bg-4); }
+
+        .person-node {
+            background: var(--box-bg);
+            padding: 12px 16px;
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border-color);
+            text-align: center;
+            cursor: pointer;
+            min-width: 155px;
+            max-width: 190px;
+            position: relative;
+            transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+            z-index: 2;
+        }
+
+        .person-node:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--hover-shadow);
+            border-color: var(--primary-warm);
+        }
+
+        .person-name {
+            font-weight: bold;
+            font-size: 0.95em;
+            margin-bottom: 4px;
+            word-wrap: break-word;
+        }
+
+        .person-year {
+            font-size: 0.8em;
+            color: #5d4037;
+        }
+
+        .lines-svg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        /* Modal Settings */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(62, 39, 35, 0.5);
+            backdrop-filter: blur(4px);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: var(--bg-color);
+            padding: 40px;
+            border-radius: 16px;
+            box-shadow: 0 12px 40px rgba(0,0,0,0.3);
+            width: 95vw;
+            max-width: 1400px;
+            max-height: 90vh;
+            overflow: auto;
+            border: 3px solid var(--primary-warm);
+            position: relative;
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: none;
+            border: none;
+            font-size: 2em;
+            cursor: pointer;
+            color: var(--primary-warm);
+            font-weight: bold;
+        }
+
+        .modal-tree-container {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            gap: 50px;
+            align-items: center;
+            padding: 20px;
+            width: max-content;
+            margin: 0 auto;
+        }
+
+        .modal-row {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            position: relative;
+            width: 100%;
+        }
+
+        .current-focused-node {
+            border: 2.5px solid var(--primary-warm);
+            background-color: #fffde7;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="zoom-panel">
+        <button onclick="adjustZoom(-0.1)">−</button>
+        <input type="range" id="zoomSlider" min="0.2" max="1.5" step="0.05" value="1" oninput="setZoom(this.value)">
+        <button onclick="adjustZoom(0.1)">+</button>
+        <span class="zoom-label" id="zoomLabel">100%</span>
+        <button class="btn-reset" onclick="resetZoom()">Reset</button>
+    </div>
+
+    <h1>The William Fox Family Tree</h1>
+    <div class="subtitle">Click any individual box to explore their full branch, siblings, parents, and entire lineage downwards.</div>
+
+    <div class="tree-viewport">
+        <div id="zoomWrapper">
+            <div class="tree-container" id="mainTree">
+                <svg class="lines-svg" id="mainSvg"></svg>
+                <div class="generation-envelope gen-0" data-gen="Generation 0 (Root)" id="main-gen-0"></div>
+                <div class="generation-envelope gen-1" data-gen="Generation 1" id="main-gen-1"></div>
+                <div class="generation-envelope gen-2" data-gen="Generation 2" id="main-gen-2"></div>
+                <div class="generation-envelope gen-3" data-gen="Generation 3" id="main-gen-3"></div>
+                <div class="generation-envelope gen-4" data-gen="Generation 4" id="main-gen-4"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="modalOverlay" onclick="handleOutsideClick(event)">
+        <div class="modal-content">
+            <button class="modal-close" onclick="closeModal()">×</button>
+            <div class="modal-tree-container" id="modalTree">
+                <svg class="lines-svg" id="modalSvg"></svg>
+                <div class="modal-row" id="modalParentRow"></div>
+                <div class="modal-row" id="modalSelfSiblingsRow"></div>
+                <div id="modalChildrenBranches" style="display: flex; flex-direction: column; gap: 50px; width: 100%;"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let globalZoom = 1;
+
+        const familyDataset = {
+            'p0': { id: 'p0', name: "William Fox (Sr)", year: "1907", parent: null, birthOrder: 1, gen: 0 },
+            
+            // Gen 1
+            'p1': { id: 'p1', name: "Eleanor Warren", year: "1927-2025", parent: 'p0', birthOrder: 1, gen: 1 },
+            'p2': { id: 'p2', name: "William Fox (Jr)", year: "1932-1989", parent: 'p0', birthOrder: 2, gen: 1 },
+            'p3': { id: 'p3', name: "Carole Hoover", year: "1936", parent: 'p0', birthOrder: 3, gen: 1 },
+            'p4': { id: 'p4', name: "Mary Riley", year: "1945-2018", parent: 'p0', birthOrder: 4, gen: 1 },
+            'p5': { id: 'p5', name: "Chuck Paskovics (Sr)", year: "1945", parent: 'p0', birthOrder: 5, gen: 1 },
+            'p6': { id: 'p6', name: "Tom Fox (Sr)", year: "1946", parent: 'p0', birthOrder: 6, gen: 1 },
+            'p7': { id: 'p7', name: "John Fox (Sr)", year: "1950", parent: 'p0', birthOrder: 7, gen: 1 },
+            'p8': { id: 'p8', name: "Shannon Smith", year: "1954-1993", parent: 'p0', birthOrder: 8, gen: 1 },
+            'p9': { id: 'p9', name: "Jimmy Fox", year: "1960", parent: 'p0', birthOrder: 9, gen: 1 },
+
+            // Gen 2 (Eleanor's Line)
+            'p1_1': { id: 'p1_1', name: "Michael Tague", year: "1949", parent: 'p1', birthOrder: 1, gen: 2 },
+            'p1_2': { id: 'p1_2', name: "Kathleen Tague", year: "1950-2006", parent: 'p1', birthOrder: 2, gen: 2 },
+            'p1_3': { id: 'p1_3', name: "Valerie Tague", year: "1952", parent: 'p1', birthOrder: 3, gen: 2 },
+            'p1_4': { id: 'p1_4', name: "Mark Tague", year: "1954-2011", parent: 'p1', birthOrder: 4, gen: 2 },
+            'p1_5': { id: 'p1_5', name: "Daniel Tague", year: "1957", parent: 'p1', birthOrder: 5, gen: 2 },
+
+            // Gen 2 (Carole's Line)
+            'p3_1': { id: 'p3_1', name: "Terri Reyes", year: "1957", parent: 'p3', birthOrder: 1, gen: 2 },
+            'p3_2': { id: 'p3_2', name: "Lori Hoover", year: "1961", parent: 'p3', birthOrder: 2, gen: 2 },
+            'p3_3': { id: 'p3_3', name: "Mark Hoover", year: "1963", parent: 'p3', birthOrder: 3, gen: 2 },
+            'p3_4': { id: 'p3_4', name: "Vicki Krutzikowsky", year: "1970", parent: 'p3', birthOrder: 4, gen: 2 },
+            'p3_5': { id: 'p3_5', name: "Angela Bonzani", year: "1981", parent: 'p3', birthOrder: 5, gen: 2 },
+
+            // Gen 2 (Mary's Line)
+            'p4_1': { id: 'p4_1', name: "Jennifer Casey", year: "1970", parent: 'p4', birthOrder: 1, gen: 2 },
+            'p4_2': { id: 'p4_2', name: "Liam Riley", year: "1973", parent: 'p4', birthOrder: 2, gen: 2 },
+
+            // Gen 2 (Chuck's Line)
+            'p5_1': { id: 'p5_1', name: "Connie Kadetz", year: "1967", parent: 'p5', birthOrder: 1, gen: 2 },
+            'p5_2': { id: 'p5_2', name: "Chuck Paskovics (Jr)", year: "1970", parent: 'p5', birthOrder: 2, gen: 2 },
+
+            // Gen 2 (Tom's Line)
+            'p6_1': { id: 'p6_1', name: "Caitlin Kormann", year: "1980", parent: 'p6', birthOrder: 1, gen: 2 },
+            'p6_2': { id: 'p6_2', name: "Tom Fox (Jr)", year: "1982", parent: 'p6', birthOrder: 2, gen: 2 },
+
+            // Gen 2 (John's Line)
+            'p7_1': { id: 'p7_1', name: "John Fox (Jr)", year: "1978", parent: 'p7', birthOrder: 1, gen: 2 },
+            'p7_2': { id: 'p7_2', name: "Michael Fox", year: "1982", parent: 'p7', birthOrder: 2, gen: 2 },
+            'p7_3': { id: 'p7_3', name: "Sarah Fox", year: "1986", parent: 'p7', birthOrder: 3, gen: 2 },
+            'p7_4': { id: 'p7_4', name: "Brian Fox", year: "1987", parent: 'p7', birthOrder: 4, gen: 2 },
+            'p7_5': { id: 'p7_5', name: "Samantha Fox", year: "1988", parent: 'p7', birthOrder: 5, gen: 2 },
+            'p7_6': { id: 'p7_6', name: "James Fox", year: "1988", parent: 'p7', birthOrder: 6, gen: 2 },
+
+            // Gen 2 (Shannon's Line)
+            'p8_1': { id: 'p8_1', name: "Colin Smith", year: "1986", parent: 'p8', birthOrder: 1, gen: 2 },
+            'p8_2': { id: 'p8_2', name: "Raegan Yochum", year: "1989", parent: 'p8', birthOrder: 2, gen: 2 },
+            'p8_3': { id: 'p8_3', name: "Mackenzie Januszewski", year: "1991", parent: 'p8', birthOrder: 3, gen: 2 },
+
+            // Gen 2 (Jimmy's Line)
+            'p9_1': { id: 'p9_1', name: "Adam Fox", year: "1991", parent: 'p9', birthOrder: 1, gen: 2 },
+            'p9_2': { id: 'p9_2', name: "Alex Fox", year: "1995", parent: 'p9', birthOrder: 2, gen: 2 },
+
+            // Gen 3 (Michael Tague)
+            'p1_1_1': { id: 'p1_1_1', name: "Matt Tague", year: "", parent: 'p1_1', birthOrder: 1, gen: 3 },
+            'p1_1_2': { id: 'p1_1_2', name: "Melissa Tague", year: "", parent: 'p1_1', birthOrder: 2, gen: 3 },
+
+            // Gen 3 (Kathleen Tague)
+            'p1_2_1': { id: 'p1_2_1', name: "Jason Pottorff", year: "1970", parent: 'p1_2', birthOrder: 1, gen: 3 },
+            'p1_2_2': { id: 'p1_2_2', name: "Sarah Tague", year: "1973", parent: 'p1_2', birthOrder: 2, gen: 3 },
+            'p1_2_3': { id: 'p1_2_3', name: "Adam Snyder", year: "1975", parent: 'p1_2', birthOrder: 3, gen: 3 },
+            'p1_2_4': { id: 'p1_2_4', name: "Elizabeth Snyder", year: "1979", parent: 'p1_2', birthOrder: 4, gen: 3 },
+            'p1_2_5': { id: 'p1_2_5', name: "Daniel Snyder", year: "1980-1980", parent: 'p1_2', birthOrder: 5, gen: 3 },
+            'p1_2_6': { id: 'p1_2_6', name: "Rebecca Snyder", year: "1981", parent: 'p1_2', birthOrder: 6, gen: 3 },
+
+            // Gen 3 (Valerie Tague)
+            'p1_3_1': { id: 'p1_3_1', name: "Jeremy Renner", year: "1971", parent: 'p1_3', birthOrder: 1, gen: 3 },
+            'p1_3_2': { id: 'p1_3_2', name: "Kimberly Renner", year: "1973", parent: 'p1_3', birthOrder: 2, gen: 3 },
+            'p1_3_3': { id: 'p1_3_3', name: "Nicole Bonilla", year: "1983", parent: 'p1_3', birthOrder: 3, gen: 3 },
+
+            // Gen 3 (Terri Reyes)
+            'p3_1_1': { id: 'p3_1_1', name: "Merissa Gerhards", year: "1975", parent: 'p3_1', birthOrder: 1, gen: 3 },
+            'p3_1_2': { id: 'p3_1_2', name: "Maegan Gerhards", year: "1977", parent: 'p3_1', birthOrder: 2, gen: 3 },
+            'p3_1_3': { id: 'p3_1_3', name: "Nathan Gerhards", year: "1979", parent: 'p3_1', birthOrder: 3, gen: 3 },
+            'p3_1_4': { id: 'p3_1_4', name: "Andrea Gerhards", year: "1982", parent: 'p3_1', birthOrder: 4, gen: 3 },
+            'p3_1_5': { id: 'p3_1_5', name: "Ashton Reyes", year: "1989-2012", parent: 'p3_1', birthOrder: 5, gen: 3 },
+
+            // Gen 3 (Lori Hoover)
+            'p3_2_1': { id: 'p3_2_1', name: "Brian Nowlin", year: "1984", parent: 'p3_2', birthOrder: 1, gen: 3 },
+            'p3_2_2': { id: 'p3_2_2', name: "Libby Nowlin", year: "1986", parent: 'p3_2', birthOrder: 2, gen: 3 },
+
+            // Gen 3 (Mark Hoover)
+            'p3_3_1': { id: 'p3_3_1', name: "Kallen Hoover", year: "1998", parent: 'p3_3', birthOrder: 1, gen: 3 },
+            'p3_3_2': { id: 'p3_3_2', name: "Kolby Hoover", year: "2000", parent: 'p3_3', birthOrder: 2, gen: 3 },
+
+            // Gen 3 (Vicki Krutzikowsky)
+            'p3_4_1': { id: 'p3_4_1', name: "Ronan Krutzikowsky", year: "2000", parent: 'p3_4', birthOrder: 1, gen: 3 },
+            'p3_4_2': { id: 'p3_4_2', name: "Niko Krutzikowsky", year: "2002", parent: 'p3_4', birthOrder: 2, gen: 3 },
+            'p3_4_3': { id: 'p3_4_3', name: "Merak Krutzikowsky", year: "2006", parent: 'p3_4', birthOrder: 3, gen: 3 },
+
+            // Gen 3 (Angela Bonzani)
+            'p3_5_01': { id: 'p3_5_01', name: "Sierra Hughes", year: "2000", parent: 'p3_5', birthOrder: 1, gen: 3 },
+            'p3_5_02': { id: 'p3_5_02', name: "Addison Bonzani", year: "2004", parent: 'p3_5', birthOrder: 2, gen: 3 },
+            'p3_5_03': { id: 'p3_5_03', name: "Kendall Zamora", year: "2004", parent: 'p3_5', birthOrder: 3, gen: 3 },
+            'p3_5_04': { id: 'p3_5_04', name: "Jack Bonzani", year: "2006", parent: 'p3_5', birthOrder: 4, gen: 3 },
+            'p3_5_05': { id: 'p3_5_05', name: "Brielle Bonzani", year: "2008", parent: 'p3_5', birthOrder: 5, gen: 3 },
+            'p3_5_06': { id: 'p3_5_06', name: "Levi Bonzani", year: "2010", parent: 'p3_5', birthOrder: 6, gen: 3 },
+            'p3_5_07': { id: 'p3_5_07', name: "Marin Bonzani", year: "2013", parent: 'p3_5', birthOrder: 7, gen: 3 },
+            'p3_5_08': { id: 'p3_5_08', name: "Phineas Bonzani", year: "2016", parent: 'p3_5', birthOrder: 8, gen: 3 },
+            'p3_5_09': { id: 'p3_5_09', name: "Philomena Bonzani", year: "2020", parent: 'p3_5', birthOrder: 9, gen: 3 },
+            'p3_5_10': { id: 'p3_5_10', name: "Blaise Bonzani", year: "2020", parent: 'p3_5', birthOrder: 10, gen: 3 },
+
+            // Gen 3 (Jennifer Casey)
+            'p4_1_1': { id: 'p4_1_1', name: "Emily Casey", year: "2004", parent: 'p4_1', birthOrder: 1, gen: 3 },
+            'p4_1_2': { id: 'p4_1_2', name: "Jillian Casey", year: "2005", parent: 'p4_1', birthOrder: 2, gen: 3 },
+
+            // Gen 3 (Liam Riley)
+            'p4_2_1': { id: 'p4_2_1', name: "Aiden Riley", year: "2002", parent: 'p4_2', birthOrder: 1, gen: 3 },
+            'p4_2_2': { id: 'p4_2_2', name: "Tessa Riley", year: "2004", parent: 'p4_2', birthOrder: 2, gen: 3 },
+            'p4_2_3': { id: 'p4_2_3', name: "Stephanie Riley", year: "2008", parent: 'p4_2', birthOrder: 3, gen: 3 },
+
+            // Gen 3 (Connie Kadetz)
+            'p5_1_1': { id: 'p5_1_1', name: "Melia Marie Kadetz", year: "1997", parent: 'p5_1', birthOrder: 1, gen: 3 },
+            'p5_1_2': { id: 'p5_1_2', name: "Zach Kadetz", year: "1995", parent: 'p5_1', birthOrder: 2, gen: 3 },
+
+            // Gen 3 (Chuck Paskovics Jr)
+            'p5_2_1': { id: 'p5_2_1', name: "Trey Paskovics", year: "1998", parent: 'p5_2', birthOrder: 1, gen: 3 },
+            'p5_2_2': { id: 'p5_2_2', name: "Trevor Paskovics", year: "1999", parent: 'p5_2', birthOrder: 2, gen: 3 },
+            'p5_2_3': { id: 'p5_2_3', name: "Trent Paskovics", year: "2001", parent: 'p5_2', birthOrder: 3, gen: 3 },
+
+            // Gen 3 (Caitlin Kormann)
+            'p6_1_1': { id: 'p6_1_1', name: "Gus Kormann", year: "2017", parent: 'p6_1', birthOrder: 1, gen: 3 },
+            'p6_1_2': { id: 'p6_1_2', name: "Mina Kormann", year: "2018", parent: 'p6_1', birthOrder: 2, gen: 3 },
+
+            // Gen 3 (Tom Fox Jr)
+            'p6_2_1': { id: 'p6_2_1', name: "Reece Fox", year: "2020", parent: 'p6_2', birthOrder: 1, gen: 3 },
+
+            // Gen 3 (John Fox Jr)
+            'p7_1_1': { id: 'p7_1_1', name: "Julia Fox", year: "1999", parent: 'p7_1', birthOrder: 1, gen: 3 },
+            'p7_1_2': { id: 'p7_1_2', name: "Jenna Fox", year: "2004", parent: 'p7_1', birthOrder: 2, gen: 3 },
+            'p7_1_3': { id: 'p7_1_3', name: "John Fox", year: "2009", parent: 'p7_1', birthOrder: 3, gen: 3 },
+            'p7_1_4': { id: 'p7_1_4', name: "Jayla Fox", year: "2014", parent: 'p7_1', birthOrder: 4, gen: 3 },
+            'p7_1_5': { id: 'p7_1_5', name: "Joseph Mathew Fox", year: "2016", parent: 'p7_1', birthOrder: 5, gen: 3 },
+
+            // Gen 3 (Sarah Fox)
+            'p7_3_1': { id: 'p7_3_1', name: "Julian Decker", year: "2022", parent: 'p7_3', birthOrder: 1, gen: 3 },
+            'p7_3_2': { id: 'p7_3_2', name: "Alexandra Decker", year: "2022", parent: 'p7_3', birthOrder: 2, gen: 3 },
+            'p7_3_3': { id: 'p7_3_3', name: "James Decker", year: "2024", parent: 'p7_3', birthOrder: 3, gen: 3 },
+
+            // Gen 3 (Brian Fox)
+            'p7_4_1': { id: 'p7_4_1', name: "Dean Fox", year: "2023", parent: 'p7_4', birthOrder: 1, gen: 3 },
+            'p7_4_2': { id: 'p7_4_2', name: "Nina Laurie Fox", year: "2024", parent: 'p7_4', birthOrder: 2, gen: 3 },
+
+            // Gen 3 (Samantha Fox)
+            'p7_5_1': { id: 'p7_5_1', name: "Arlo Lanusse", year: "2020", parent: 'p7_5', birthOrder: 1, gen: 3 },
+            'p7_5_2': { id: 'p7_5_2', name: "Olive Lanusse", year: "2023", parent: 'p7_5', birthOrder: 2, gen: 3 },
+            'p7_5_3': { id: 'p7_5_3', name: "Esperanza Fox Lanusse", year: "2025", parent: 'p7_5', birthOrder: 3, gen: 3 },
+
+            // Gen 3 (James Fox)
+            'p7_6_1': { id: 'p7_6_1', name: "Layla Fox", year: "2020", parent: 'p7_6', birthOrder: 1, gen: 3 },
+            'p7_6_2': { id: 'p7_6_2', name: "Theo Fox", year: "2022", parent: 'p7_6', birthOrder: 2, gen: 3 },
+            'p7_6_3': { id: 'p7_6_3', name: "Nora Fox", year: "2025", parent: 'p7_6', birthOrder: 3, gen: 3 },
+
+            // Gen 3 (Colin Smith)
+            'p8_1_1': { id: 'p8_1_1', name: "Maeve Smith", year: "2020", parent: 'p8_1', birthOrder: 1, gen: 3 },
+
+            // Gen 3 (Raegan Yochum)
+            'p8_2_1': { id: 'p8_2_1', name: "Reece Yochum", year: "2021", parent: 'p8_2', birthOrder: 1, gen: 3 },
+            'p8_2_2': { id: 'p8_2_2', name: "Rory Yochum", year: "2024", parent: 'p8_2', birthOrder: 2, gen: 3 },
+
+            // Gen 3 (Mackenzie Januszewski)
+            'p8_3_1': { id: 'p8_3_1', name: "Emery Eaton", year: "2010", parent: 'p8_3', birthOrder: 1, gen: 3 },
+            'p8_3_2': { id: 'p8_3_2', name: "George Januszewski", year: "2024", parent: 'p8_3', birthOrder: 2, gen: 3 },
+            'p8_3_3': { id: 'p8_3_3', name: "Greer Januszewski", year: "2026", parent: 'p8_3', birthOrder: 3, gen: 3 },
+
+            // Gen 3 (Adam Fox)
+            'p9_1_1': { id: 'p9_1_1', name: "Grayson Fox", year: "2026", parent: 'p9_1', birthOrder: 1, gen: 3 },
+
+            // Gen 4
+            'p1_1_2_1': { id: 'p1_1_2_1', name: "Oliver Heuer", year: "2013", parent: 'p1_1_2', birthOrder: 1, gen: 4 },
+            'p1_1_2_2': { id: 'p1_1_2_2', name: "Will Heuer", year: "2015", parent: 'p1_1_2', birthOrder: 2, gen: 4 },
+            'p1_2_1_1': { id: 'p1_2_1_1', name: "Julian Pottorff", year: "", parent: 'p1_2_1', birthOrder: 1, gen: 4 },
+            'p1_2_1_2': { id: 'p1_2_1_2', name: "Max Pottorff", year: "", parent: 'p1_2_1', birthOrder: 2, gen: 4 },
+            'p1_2_2_1': { id: 'p1_2_2_1', name: "Jake Costello", year: "", parent: 'p1_2_2', birthOrder: 1, gen: 4 },
+            'p1_2_2_2': { id: 'p1_2_2_2', name: "Kid Costello", year: "", parent: 'p1_2_2', birthOrder: 2, gen: 4 },
+            'p1_2_4_1': { id: 'p1_2_4_1', name: "Kid Snyder (1)", year: "", parent: 'p1_2_4', birthOrder: 1, gen: 4 },
+            'p1_2_4_2': { id: 'p1_2_4_2', name: "Kid Snyder (2)", year: "", parent: 'p1_2_4', birthOrder: 2, gen: 4 },
+            'p1_2_6_1': { id: 'p1_2_6_1', name: "Kid Snyder", year: "", parent: 'p1_2_6', birthOrder: 1, gen: 4 },
+            'p1_3_1_1': { id: 'p1_3_1_1', name: "Ava Renner", year: "2013", parent: 'p1_3_1', birthOrder: 1, gen: 4 },
+            'p1_3_2_1': { id: 'p1_3_2_1', name: "Kid Renner (1)", year: "", parent: 'p1_3_2', birthOrder: 1, gen: 4 },
+            'p1_3_2_2': { id: 'p1_3_2_2', name: "Kid Renner (2)", year: "", parent: 'p1_3_2', birthOrder: 2, gen: 4 },
+            'p1_3_2_3': { id: 'p1_3_2_3', name: "Kid Kristoffer", year: "", parent: 'p1_3_2', birthOrder: 3, gen: 4 },
+            'p1_3_2_4': { id: 'p1_3_2_4', name: "Kayla Renner", year: "1993", parent: 'p1_3_2', birthOrder: 4, gen: 4 },
+            'p1_3_2_5': { id: 'p1_3_2_5', name: "Isabella Vieira", year: "2004", parent: 'p1_3_2', birthOrder: 5, gen: 4 },
+            'p1_3_3_1': { id: 'p1_3_3_1', name: "Auggie Bonilla", year: "", parent: 'p1_3_3', birthOrder: 1, gen: 4 },
+            'p1_3_3_2': { id: 'p1_3_3_2', name: "Daphne Bonilla", year: "", parent: 'p1_3_3', birthOrder: 2, gen: 4 },
+            'p3_1_1_1': { id: 'p3_1_1_1', name: "Hope Lieberwirth", year: "", parent: 'p3_1_1', birthOrder: 1, gen: 4 },
+            'p3_1_1_2': { id: 'p3_1_1_2', name: "Grayson Sherwood", year: "2013", parent: 'p3_1_1', birthOrder: 2, gen: 4 },
+            'p3_1_2_1': { id: 'p3_1_2_1', name: "Zach Gerhards", year: "2002", parent: 'p3_1_2', birthOrder: 1, gen: 4 },
+            'p3_1_3_1': { id: 'p3_1_3_1', name: "Andrew Gerhards", year: "2015", parent: 'p3_1_3', birthOrder: 1, gen: 4 },
+            'p3_1_3_2': { id: 'p3_1_3_2', name: "Allora Gerhards", year: "2018", parent: 'p3_1_3', birthOrder: 2, gen: 4 },
+            'p3_1_3_3': { id: 'p3_1_3_3', name: "Matthias Gerhards", year: "2021", parent: 'p3_1_3', birthOrder: 3, gen: 4 },
+            'p3_1_4_1': { id: 'p3_1_4_1', name: "Genevie (Jena) Bush  ", year: "2008", parent: 'p3_1_4', birthOrder: 1, gen: 4 },
+            'p3_1_4_2': { id: 'p3_1_4_2', name: "Colton Bush", year: "2013", parent: 'p3_1_4', birthOrder: 2, gen: 4 },
+            'p3_2_1_1': { id: 'p3_2_1_1', name: "Kennedy Nowlin", year: "2018", parent: 'p3_2_1', birthOrder: 1, gen: 4 },
+            'p3_5_01_1': { id: 'p3_5_01_1', name: "Hazel Hughes", year: "2019", parent: 'p3_5_01', birthOrder: 1, gen: 4 },
+            'p3_5_01_2': { id: 'p3_5_01_2', name: "Finley Hughes", year: "2022", parent: 'p3_5_01', birthOrder: 2, gen: 4 },
+            'p3_5_01_3': { id: 'p3_5_01_3', name: "Shelby Hughes", year: "2023", parent: 'p3_5_01', birthOrder: 3, gen: 4 },
+            'p3_5_01_4': { id: 'p3_5_01_4', name: "Baby Hughes", year: "2026", parent: 'p3_5_01', birthOrder: 4, gen: 4 },
+            'p3_5_03_1': { id: 'p3_5_03_1', name: "Thomas Jose Zamora", year: "2025", parent: 'p3_5_03', birthOrder: 1, gen: 4 },
+            'p5_1_1_1': { id: 'p5_1_1_1', name: "John Kadetz", year: "2020", parent: 'p5_1_1', birthOrder: 1, gen: 4 }
+        };
+
+        // Zoom Management functions
+        function setZoom(value) {
+            globalZoom = parseFloat(value);
+            document.getElementById('zoomSlider').value = globalZoom;
+            document.getElementById('zoomLabel').innerText = `${Math.round(globalZoom * 100)}%`;
+            document.getElementById('zoomWrapper').style.transform = `scale(${globalZoom})`;
+        }
+
+        function adjustZoom(delta) {
+            let newVal = Math.min(Math.max(globalZoom + delta, 0.2), 1.5);
+            setZoom(newVal);
+        }
+
+        function resetZoom() {
+            setZoom(1);
+        }
+
+        // Structural offset calculator that is immune to CSS transforms scale distortions
+        function getElementOffset(el, targetContainer) {
+            let left = 0;
+            let top = 0;
+            while (el && el !== targetContainer) {
+                left += el.offsetLeft;
+                top += el.offsetTop;
+                el = el.offsetParent;
+            }
+            return { left, top };
+        }
+
+        function buildMainTree() {
+            const containers = {
+                0: document.getElementById('main-gen-0'),
+                1: document.getElementById('main-gen-1'),
+                2: document.getElementById('main-gen-2'),
+                3: document.getElementById('main-gen-3'),
+                4: document.getElementById('main-gen-4')
+            };
+
+            const sortedMembers = Object.values(familyDataset).sort((a, b) => {
+                if (a.gen !== b.gen) return a.gen - b.gen;
+                const pA = familyDataset[a.parent];
+                const pB = familyDataset[b.parent];
+                const pOrderA = pA ? pA.birthOrder : 0;
+                const pOrderB = pB ? pB.birthOrder : 0;
+                if (pOrderA !== pOrderB) return pOrderA - pOrderB;
+                return a.birthOrder - b.birthOrder;
+            });
+
+            sortedMembers.forEach(member => {
+                if (containers[member.gen]) {
+                    const node = createNodeElement(member, false);
+                    containers[member.gen].appendChild(node);
+                }
+            });
+
+            setTimeout(() => drawLayoutLines('mainTree', 'mainSvg'), 300);
+        }
+
+        function createNodeElement(member, isModal, isCurrent = false) {
+            const div = document.createElement('div');
+            div.id = (isModal ? 'modal-node-' : 'node-') + member.id;
+            div.className = `person-node ${isCurrent ? 'current-focused-node' : ''}`;
+            div.innerHTML = `<div class="person-name">${member.name}</div><div class="person-year">${member.year || '&nbsp;'}</div>`;
+            
+            if (isModal) {
+                if (isCurrent) {
+                    div.onclick = () => {
+                        if (!member.parent) {
+                            closeModal();
+                        } else {
+                            initiateModal(member.parent);
+                        }
+                    };
+                } else {
+                    div.onclick = () => initiateModal(member.id);
+                }
+            } else {
+                div.onclick = () => initiateModal(member.id);
+            }
+            return div;
+        }
+
+        function initiateModal(id) {
+            const target = familyDataset[id];
+            if (!target) return;
+
+            document.getElementById('modalParentRow').innerHTML = '';
+            document.getElementById('modalSelfSiblingsRow').innerHTML = '';
+            document.getElementById('modalChildrenBranches').innerHTML = '';
+
+            if (target.parent) {
+                const parentNode = createNodeElement(familyDataset[target.parent], true, true);
+                document.getElementById('modalParentRow').appendChild(parentNode);
+            }
+
+            const siblings = Object.values(familyDataset).filter(m => m.parent === target.parent && m.gen === target.gen);
+            siblings.sort((a, b) => a.birthOrder - b.birthOrder);
+            siblings.forEach(sib => {
+                const sNode = createNodeElement(sib, true, sib.id === id);
+                document.getElementById('modalSelfSiblingsRow').appendChild(sNode);
+            });
+
+            let downstreamGen = target.gen + 1;
+            let currentParentIds = [id];
+            
+            while (true) {
+                const descendants = Object.values(familyDataset).filter(m => currentParentIds.includes(m.parent) && m.gen === downstreamGen);
+                if (descendants.length === 0) break;
+
+                descendants.sort((a, b) => {
+                    const pA = familyDataset[a.parent];
+                    const pB = familyDataset[b.parent];
+                    if (pA.birthOrder !== pB.birthOrder) return pA.birthOrder - pB.birthOrder;
+                    return a.birthOrder - b.birthOrder;
+                });
+
+                const envelope = document.createElement('div');
+                envelope.className = `generation-envelope gen-${downstreamGen}`;
+                envelope.setAttribute('data-gen', `Generation ${downstreamGen}`);
+                
+                descendants.forEach(desc => {
+                    envelope.appendChild(createNodeElement(desc, true, false));
+                });
+
+                document.getElementById('modalChildrenBranches').appendChild(envelope);
+                currentParentIds = descendants.map(d => d.id);
+                downstreamGen++;
+            }
+
+            document.getElementById('modalOverlay').style.display = 'flex';
+            setTimeout(() => drawLayoutLines('modalTree', 'modalSvg', true, id), 100);
+        }
+
+        function closeModal() {
+            document.getElementById('modalOverlay').style.display = 'none';
+        }
+
+        function handleOutsideClick(e) {
+            if (e.target.id === 'modalOverlay') closeModal();
+        }
+
+        function drawLayoutLines(containerId, svgId, isModal = false, focusId = null) {
+            const container = document.getElementById(containerId);
+            const svg = document.getElementById(svgId);
+            svg.innerHTML = '';
+
+            const prefix = isModal ? 'modal-node-' : 'node-';
+
+            Object.values(familyDataset).forEach(member => {
+                const element = document.getElementById(prefix + member.id);
+                if (!element || !member.parent) return;
+
+                const parentElement = document.getElementById(prefix + member.parent);
+                if (!parentElement) return;
+
+                const pOffset = getElementOffset(parentElement, container);
+                const cOffset = getElementOffset(element, container);
+
+                const px = pOffset.left + parentElement.offsetWidth / 2;
+                const py = pOffset.top + parentElement.offsetHeight;
+                const cx = cOffset.left + element.offsetWidth / 2;
+                const cy = cOffset.top;
+
+                const midY = (py + cy) / 2;
+
+                const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                path.setAttribute('d', `M ${px} ${py} C ${px} ${midY}, ${cx} ${midY}, ${cx} ${cy}`);
+                path.setAttribute('stroke', '#8c2d19');
+                path.setAttribute('stroke-width', isModal && (member.id === focusId || member.parent === focusId) ? '3' : '1.5');
+                path.setAttribute('fill', 'none');
+                svg.appendChild(path);
+            });
+        }
+
+        window.onload = buildMainTree;
+        window.onresize = () => {
+            drawLayoutLines('mainTree', 'mainSvg');
+            if (document.getElementById('modalOverlay').style.display === 'flex') {
+                drawLayoutLines('modalTree', 'modalSvg', true);
+            }
+        };
+    </script>
+</body>
+</html>
